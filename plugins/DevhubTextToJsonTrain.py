@@ -1,6 +1,9 @@
 import json
-from transformers import BertTokenizer, BertForTokenClassification, Trainer, TrainingArguments
+from transformers import BertTokenizerFast, BertForTokenClassification, Trainer, TrainingArguments, DataCollatorForTokenClassification
 from datasets import Dataset
+
+# Định nghĩa tokenizer trước
+tokenizer = BertTokenizerFast.from_pretrained("bert-base-multilingual-cased")
 
 # Đọc dữ liệu từ file JSONL
 def read_jsonl(file_path):
@@ -12,7 +15,7 @@ def read_jsonl(file_path):
 
 # Chuyển đổi nhãn sang token-level
 def tokenize_and_align_labels(example):
-    tokenized_inputs = tokenizer(example["text"], truncation=True, return_offsets_mapping=True)
+    tokenized_inputs = tokenizer(example["text"], truncation=True, padding="max_length", max_length=128, return_offsets_mapping=True)
     labels = [0] * len(tokenized_inputs["input_ids"])  # Mặc định là "O"
 
     for entity in example["labels"]:
@@ -43,9 +46,8 @@ labels = [item["labels"] for item in data]
 dataset = Dataset.from_dict({"text": texts, "labels": labels})
 tokenized_dataset = dataset.map(tokenize_and_align_labels)
 
-# Tải tokenizer và mô hình
-tokenizer = BertTokenizer.from_pretrained("bert-base-multilingual-cased")
-model = BertForTokenClassification.from_pretrained("bert-base-multilingual-cased", num_labels=len(label_list), id2label=id2label, label2id=label2id)
+# Tải mô hình
+model = BertForTokenClassification.from_pretrained("bert-base-multilingual-cased", num_labels=len(label_list))
 
 # Thiết lập huấn luyện
 training_args = TrainingArguments(
@@ -57,12 +59,22 @@ training_args = TrainingArguments(
     weight_decay=0.01,
 )
 
+# Sử dụng DataCollatorForTokenClassification để đảm bảo padding
+data_collator = DataCollatorForTokenClassification(tokenizer)
+
 trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=tokenized_dataset,
     eval_dataset=tokenized_dataset,
+    data_collator=data_collator,
 )
 
 # Huấn luyện mô hình
 trainer.train()
+
+# Lưu mô hình và tokenizer
+model.save_pretrained("./saved_model")
+tokenizer.save_pretrained("./saved_model")
+
+print("Training and saving complete.")
