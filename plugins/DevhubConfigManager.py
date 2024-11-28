@@ -59,4 +59,4 @@ class ConfigManager:
 # Example usage
 # key_manager = ConfigManager()
 # key_manager.generate_key()
-# key_manager.add_api_key('API_KEY_GEMINI', 'YOUR_API_KEY')
+# key_manager.add_api_key('API_KEY_GEMINI', '')
